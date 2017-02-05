@@ -1,2 +1,2 @@
 # davhttp
-minimal zero dependency C code for HTTP GET and POST
+minimal dependency C code for HTTP GET and POST (on Windows)
