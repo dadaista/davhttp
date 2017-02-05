@@ -1,3 +1,8 @@
+/* CHANGES FROM UNIX VERSION                                                   */
+/*                                                                             */
+/* 1.  Changed header files.                                                   */
+/* 2.  Added WSAStartUP() and WSACleanUp().                                    */
+/* 3.  Used closesocket() instead of close().                                  */ 
 
 #include <stdio.h>      /* for printf(), fprintf() */
 #include <winsock.h>    /* for socket(),... */
@@ -5,8 +10,14 @@
 
 #define RCVBUFSIZE 65536   /* Size of receive buffer */
 
+struct Response {
+    char *headers;
+    char *body;
+};
+
 void DieWithError(char *errorMessage);  /* Error handling function */
-int GET(char* hostname, unsigned short port, char* path, char* response);
+int GET(char* hostname, unsigned short port, char* path, struct Response* response);
+char* resolve(char *hostname);
 
 
 
@@ -23,19 +34,19 @@ char* resolve(char *hostname) {
 	char *ip="aaa.bbb.ccc.ddd";
 
     if (hp == NULL) {
-       printf("gethostbyname() failed\n");
+       DieWithError("gethostbyname() failed\n");
     } else {
-       printf("%s = ", hp->h_name);
+       /*printf("%s = ", hp->h_name);*/
        unsigned int i=0;
        while ( hp -> h_addr_list[i] != NULL) {
 		  /*strcpy(ip,inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i]))); */
 		  ip=inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i]));
-          printf( "%s ", inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i])));
+          /*printf( "%s ", inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i])));*/
 		  
           i++;
 		  
        }
-       printf("\n");
+       /*printf("\n");*/
     }
 	
 	
@@ -44,19 +55,21 @@ char* resolve(char *hostname) {
 
 
 
-int GET(char* hostname, unsigned short port, char* path, char *response)
+int GET(char* hostname, unsigned short port, char* path, struct Response *response)
 {
     int sock;                        /* Socket descriptor */
     struct sockaddr_in addr; /* Echo server address */
     char *servIP="255.255.255.255";  /* Server IP address (dotted quad) */
     char *request;
-    char *body;
+    
 	
 	
 	/* String to send to echo server */
 	
 
-    char buffer[RCVBUFSIZE];     /* Buffer for echo string */
+    char buffer1[RCVBUFSIZE];     /* Buffer for echo string */
+    char buffer2[RCVBUFSIZE];
+    
     int stringLen;               /* Length of string to echo */
     int bytesRcvd, totalBytesRcvd;   /* Bytes read in single recv() and total bytes read */
     WSADATA wsaData;                 /* Structure for WinSock setup communication */
@@ -73,13 +86,6 @@ int GET(char* hostname, unsigned short port, char* path, char *response)
     }
 
     servIP = resolve(hostname);
-
-    
-    
-
-    //Return the first one;
-	
-
 
     printf("%s resolved to : %s\n" , hostname , servIP);
 	
@@ -108,10 +114,10 @@ int GET(char* hostname, unsigned short port, char* path, char *response)
     {
         /* Receive up to the buffer size (minus 1 to leave space for 
            a null terminator) bytes from the sender */
-        if ((bytesRcvd = recv(sock, buffer, RCVBUFSIZE - 1, 0)) <= 0)
+        if ((bytesRcvd = recv(sock, buffer1, RCVBUFSIZE - 1, 0)) <= 0)
             DieWithError("recv() failed or connection closed prematurely");
         
-        strcpy(response + totalBytesRcvd,buffer);
+        strcpy(buffer2 + totalBytesRcvd,buffer1);
         totalBytesRcvd += bytesRcvd;   /* Keep tally of total bytes */
  
     } 
@@ -119,10 +125,11 @@ int GET(char* hostname, unsigned short port, char* path, char *response)
     
     /*printf("\n");    /* Print a final linefeed */
 
-    body = strstr(response, "\n\n");
-    puts("*******");
-    puts(response);
-    puts("=======");
+    strcpy(response->body, strstr(buffer2, "\r\n\r\n") + 4); /* +4 is to get rid of \r\n\r\n */
+    char *p = strstr(buffer2, "\r\n\r\n");
+    (*p)='\0';
+    response->headers = buffer2;
+
     closesocket(sock);
     WSACleanup();  /* Cleanup Winsock */
 
@@ -132,7 +139,15 @@ int GET(char* hostname, unsigned short port, char* path, char *response)
 
 void main(int argc, char *argv[])
 {
-    char resp[64*1024];
-	  GET("www.wikipedia.org",80,"/",resp);
-    puts(resp);
+    char headers[64*1024];
+    char body[64*1024];
+    
+    struct Response resp={ .headers=headers, .body=body};
+	GET("www.wikipedia.org",80,"/",&resp);
+    puts("== headers ==");
+    puts(resp.headers);
+    
+    puts("== body ==");
+    puts(resp.body);
+    
 }
