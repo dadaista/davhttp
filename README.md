@@ -1,7 +1,8 @@
 # davhttp
-minimal dependency C code for HTTP GET and POST (on Windows)
+minimal dependency C code for HTTP GET and POST (only Windows so far)
 
-IMPORTANT: only GET is implemented.
+### What it does 
+only GET is implemented.
 
     void main(int argc, char *argv[])
     {
@@ -18,9 +19,14 @@ IMPORTANT: only GET is implemented.
     
     }
 
-INSTALL MINGW and COMPILE with
-gcc davhttp.c -o davhttp.exe -lws2_32
+### Getting started
+Install MINGW and compile all with
 
+    gcc davhttp.c -o davhttp.exe -lws2_32
 
+### TODO 
+make robust and then implement POST
+
+### License
 This code is public domain.
 
