@@ -58,16 +58,13 @@ int GET(char* hostname, unsigned short port, char* path, struct Response *respon
 	/* String to send to echo server */
 	
 
-    char buffer1[RCVBUFSIZE];     /* Buffer for echo string */
-    char buffer2[RCVBUFSIZE];
-    
-    int stringLen;               /* Length of string to echo */
+    char buffer[RCVBUFSIZE];     /* Buffer for echo string */
     int bytesRcvd, totalBytesRcvd;   /* Bytes read in single recv() and total bytes read */
     WSADATA wsaData;                 /* Structure for WinSock setup communication */
 
     
     request = malloc(strlen(path) + 24);
-	sprintf(request,"GET %s HTTP/1.1\n\n",path);
+	sprintf(request,"GET %s HTTP/1.1\r\nHost: %s\r\n\r\n",path,hostname);
     puts(request);
 
     if (WSAStartup(MAKEWORD(2, 0), &wsaData) != 0) /* Load Winsock 2.0 DLL */
@@ -93,33 +90,27 @@ int GET(char* hostname, unsigned short port, char* path, struct Response *respon
     if (connect(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0)
         DieWithError("connect() failed");
 
-    stringLen = strlen(request);          /* Determine input length */
 
     /* Send the string, including the null terminator, to the server */
-    if (send(sock, request, stringLen, 0) != stringLen)
+    if (send(sock, request, strlen(request), 0) != strlen(request))
         DieWithError("send() sent a different number of bytes than expected");
 
     totalBytesRcvd = 0;
     printf("Received: ");                /* Setup to print the echoed string */
-    while (totalBytesRcvd < stringLen)
-    {
-        /* Receive up to the buffer size (minus 1 to leave space for 
-           a null terminator) bytes from the sender */
-        if ((bytesRcvd = recv(sock, buffer1, RCVBUFSIZE - 1, 0)) <= 0)
-            DieWithError("recv() failed or connection closed prematurely");
-        
-        strcpy(buffer2 + totalBytesRcvd,buffer1);
-        totalBytesRcvd += bytesRcvd;   /* Keep tally of total bytes */
+    /* Receive up to the buffer size (minus 1 to leave space for 
+       a null terminator) bytes from the sender */
+    if ((bytesRcvd = recv(sock, buffer, RCVBUFSIZE - 1, 0)) <= 0)
+        DieWithError("recv() failed or connection closed prematurely");
+    
  
-    } 
     
     
     /*printf("\n");    /* Print a final linefeed */
 
-    strcpy(response->body, strstr(buffer2, "\r\n\r\n") + 4); /* +4 is to get rid of \r\n\r\n */
-    char *p = strstr(buffer2, "\r\n\r\n");
+    strcpy(response->body, strstr(buffer, "\r\n\r\n") + 4); /* +4 is to get rid of \r\n\r\n */
+    char *p = strstr(buffer, "\r\n\r\n");
     (*p)='\0';
-    response->headers = buffer2;
+    response->headers = buffer;
 
     closesocket(sock);
     WSACleanup();  /* Cleanup Winsock */
