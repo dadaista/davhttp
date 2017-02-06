@@ -14,6 +14,7 @@ struct Response {
 
 void DieWithError(char *errorMessage);  /* Error handling function */
 int GET(char* hostname, unsigned short port, char* path, struct Response* response);
+int openSocket(char* hostname, unsigned short port);
 char* resolve(char *hostname);/* Resolve hostname to ip "a.b.c.d" */
 
 
@@ -129,12 +130,16 @@ int GET(char* hostname, unsigned short port, char* path, struct Response *respon
 
 void main(int argc, char *argv[])
 {
+    if (argc != 4) {
+        DieWithError("Usage: davhttp <host> <port> <path> \n");
+    }
+
     char headers[64*1024];
     char body[64*1024];
     
     struct Response resp={ .headers=headers, .body=body};
 
-    GET("www.wikipedia.org",80,"/",&resp);
+    GET(argv[1],atoi(argv[2]),argv[3],&resp);
     puts("== headers ==");
     puts(resp.headers);
     
