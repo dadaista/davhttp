@@ -1,8 +1,5 @@
-/* CHANGES FROM UNIX VERSION                                                   */
-/*                                                                             */
-/* 1.  Changed header files.                                                   */
-/* 2.  Added WSAStartUP() and WSACleanUp().                                    */
-/* 3.  Used closesocket() instead of close().                                  */ 
+/* Simple HTTP client                                                          */
+/* Written by Davide Carboni, public domain                                    */
 
 #include <stdio.h>      /* for printf(), fprintf() */
 #include <winsock.h>    /* for socket(),... */
@@ -17,7 +14,7 @@ struct Response {
 
 void DieWithError(char *errorMessage);  /* Error handling function */
 int GET(char* hostname, unsigned short port, char* path, struct Response* response);
-char* resolve(char *hostname);
+char* resolve(char *hostname);/* Resolve hostname to ip "a.b.c.d" */
 
 
 
@@ -29,7 +26,6 @@ void DieWithError(char *errorMessage){
 
 char* resolve(char *hostname) {
 
-
     struct hostent *hp = gethostbyname(hostname);
 	char *ip="aaa.bbb.ccc.ddd";
 
@@ -39,18 +35,12 @@ char* resolve(char *hostname) {
        /*printf("%s = ", hp->h_name);*/
        unsigned int i=0;
        while ( hp -> h_addr_list[i] != NULL) {
-		  /*strcpy(ip,inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i]))); */
-		  ip=inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i]));
-          /*printf( "%s ", inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i])));*/
-		  
+          ip=inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i]));
           i++;
-		  
        }
        /*printf("\n");*/
     }
-	
-	
-	return ip;
+    return ip;
 }
 
 
@@ -143,7 +133,8 @@ void main(int argc, char *argv[])
     char body[64*1024];
     
     struct Response resp={ .headers=headers, .body=body};
-	GET("www.wikipedia.org",80,"/",&resp);
+
+    GET("www.wikipedia.org",80,"/",&resp);
     puts("== headers ==");
     puts(resp.headers);
     
