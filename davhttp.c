@@ -12,21 +12,21 @@ struct Response {
     char *body;
 };
 
-void DieWithError(char *errorMessage);  /* Error handling function */
-int GET(char* hostname, unsigned short port, char* path, struct Response* response);
-int openSocket(char* hostname, unsigned short port);
-char* resolve(char *hostname);/* Resolve hostname to ip "a.b.c.d" */
+void DieWithError(const char *errorMessage);  /* Error handling function */
+int GET(const char* hostname, unsigned short port, const char* path, struct Response* response);
+int openSocket(const char* hostname, unsigned short port);
+char* resolve(const char *hostname);/* Resolve hostname to ip "a.b.c.d" */
 
 
 
-void DieWithError(char *errorMessage){
+void DieWithError(const char *errorMessage){
 	puts(errorMessage);
 	exit(-1);
 }
 
 
-char* resolve(char *hostname) {
-
+char* resolve(const char *hostname) {
+    printf("solving %s ...\n",hostname );
     struct hostent *hp = gethostbyname(hostname);
 	char *ip="aaa.bbb.ccc.ddd";
 
@@ -46,33 +46,33 @@ char* resolve(char *hostname) {
 
 
 
-int GET(char* hostname, unsigned short port, char* path, struct Response *response)
+int GET(const char* hostname, unsigned short port, const char* path, struct Response *response)
 {
     int sock;                        /* Socket descriptor */
     struct sockaddr_in addr; /* Echo server address */
     char *servIP="255.255.255.255";  /* Server IP address (dotted quad) */
-    char *request;
+    char request[256];/*watch this limit*/
     
-	
-	
+    printf("hostname:%s\n", hostname );
+	printf("path:%s\n", path );
+	printf("port:%i\n", port );
 	/* String to send to echo server */
 	
 
-    char buffer[RCVBUFSIZE];     /* Buffer for echo string */
+    char buffer[RCVBUFSIZE];         /* Buffer for echo string */
     int bytesRcvd, totalBytesRcvd;   /* Bytes read in single recv() and total bytes read */
     WSADATA wsaData;                 /* Structure for WinSock setup communication */
 
     
-    request = malloc(strlen(path) + 24);
 	sprintf(request,"GET %s HTTP/1.1\r\nHost: %s\r\n\r\n",path,hostname);
-    puts(request);
+    printf("request:%s\n",request);
 
     if (WSAStartup(MAKEWORD(2, 0), &wsaData) != 0) /* Load Winsock 2.0 DLL */
     {
         fprintf(stderr, "WSAStartup() failed");
         exit(1);
     }
-
+    printf("WSA started\n");
     servIP = resolve(hostname);
 
     printf("%s resolved to : %s\n" , hostname , servIP);
@@ -86,31 +86,32 @@ int GET(char* hostname, unsigned short port, char* path, struct Response *respon
     addr.sin_family      = AF_INET;             /* Internet address family */
     addr.sin_addr.s_addr = inet_addr(servIP);   /* Server IP address */
     addr.sin_port        = htons(port); /* Server port */
-    /* Establish the connection to the echo server */
+    /* Establish the connection to the  server */
+    printf("Connecting...");
     if (connect(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0)
         DieWithError("connect() failed");
-
+    puts("done");
 
     /* Send the string, including the null terminator, to the server */
+    printf("Sending request...");
     if (send(sock, request, strlen(request), 0) != strlen(request))
         DieWithError("send() sent a different number of bytes than expected");
+    puts("done");
 
-    totalBytesRcvd = 0;
-    printf("Received: ");                /* Setup to print the echoed string */
+    printf("Receiving... ");                
     /* Receive up to the buffer size (minus 1 to leave space for 
        a null terminator) bytes from the sender */
     if ((bytesRcvd = recv(sock, buffer, RCVBUFSIZE - 1, 0)) <= 0)
         DieWithError("recv() failed or connection closed prematurely");
-    
+    puts("done");
  
     
     
-    /*printf("\n");    /* Print a final linefeed */
 
-    strcpy(response->body, strstr(buffer, "\r\n\r\n") + 4); /* +4 is to get rid of \r\n\r\n */
+    strcpy(response->body, strstr(buffer, "\r\n\r\n")+4); /* +4 is to get rid of \r\n\r\n */
     char *p = strstr(buffer, "\r\n\r\n");
     (*p)='\0';
-    response->headers = buffer;
+    strcpy(response->headers,buffer);
 
     closesocket(sock);
     WSACleanup();  /* Cleanup Winsock */
