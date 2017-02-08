@@ -1,8 +1,9 @@
 # davhttp
 minimal dependency C code for HTTP GET and POST (only Windows so far)
 
-### What it does 
-only GET is implemented.
+### What it does (not) 
+Almost nothing. It can only GET small html and plain text files.
+It does not manage chunked responses. Thus it requests a HTTP/1.0
 
     void main(int argc, char *argv[])
     {
@@ -26,6 +27,7 @@ Install MINGW and compile all with
 
 ### TODO 
 make robust and then implement POST
+chunked encoding, maybe
 
 ### License
 This code is public domain.
