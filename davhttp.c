@@ -5,16 +5,15 @@
 #include <winsock.h>    /* for socket(),... */
 #include <stdlib.h>     /* for exit() */
 
-#define RCVBUFSIZE 65536   /* Size of receive buffer */
+#define RCVBUFSIZE 65536   /* watch this size of receive buffer */
 
 struct Response {
     char *headers;
-    char *body;
+    void *body;
 };
 
 void DieWithError(const char *errorMessage);  /* Error handling function */
 int GET(const char* hostname, unsigned short port, const char* path, struct Response* response);
-int openSocket(const char* hostname, unsigned short port);
 char* resolve(const char *hostname);/* Resolve hostname to ip "a.b.c.d" */
 
 
@@ -23,6 +22,7 @@ void DieWithError(const char *errorMessage){
 	puts(errorMessage);
 	exit(-1);
 }
+
 
 
 char* resolve(const char *hostname) {
@@ -59,13 +59,22 @@ int GET(const char* hostname, unsigned short port, const char* path, struct Resp
 	/* String to send to echo server */
 	
 
-    char buffer[RCVBUFSIZE];         /* Buffer for echo string */
-    int bytesRcvd, totalBytesRcvd;   /* Bytes read in single recv() and total bytes read */
+    void* buffer=malloc(RCVBUFSIZE);         /* Buffer for echo string */
+    memset(buffer,0,RCVBUFSIZE);
     WSADATA wsaData;                 /* Structure for WinSock setup communication */
 
     
-	sprintf(request,"GET %s HTTP/1.1\r\nHost: %s\r\n\r\n",path,hostname);
-    printf("request:%s\n",request);
+    /*we ask HTTP 1.0 to avoid chunked responses*/
+	sprintf(request,"\
+GET %s HTTP/1.0\r\n\
+Host: %s\r\n\
+User-Agent: davhttp\r\n\
+Accept: text/html,text/plain\r\n\
+\r\n"\
+    ,path,hostname);
+
+
+    printf("request:\n%s\n",request);
 
     if (WSAStartup(MAKEWORD(2, 0), &wsaData) != 0) /* Load Winsock 2.0 DLL */
     {
@@ -94,34 +103,38 @@ int GET(const char* hostname, unsigned short port, const char* path, struct Resp
 
     /* Send the string, including the null terminator, to the server */
     printf("Sending request...");
-    if (send(sock, request, strlen(request), 0) != strlen(request))
+    int sent=send(sock, request, strlen(request), 0);
+    if (sent != strlen(request))
         DieWithError("send() sent a different number of bytes than expected");
-    puts("done");
 
-    printf("Receiving... ");                
-    /* Receive up to the buffer size (minus 1 to leave space for 
-       a null terminator) bytes from the sender */
-    if ((bytesRcvd = recv(sock, buffer, RCVBUFSIZE - 1, 0)) <= 0)
-        DieWithError("recv() failed or connection closed prematurely");
-    puts("done");
+    printf("%i bytes sent\n", sent);
+
+    printf("Receiving... ");
+    int received=recv(sock, buffer, RCVBUFSIZE-1, 0);
+
+    printf("%d bytes\n", received);
+
+
+                
+    
  
     
-    
-
-    strcpy(response->body, strstr(buffer, "\r\n\r\n")+4); /* +4 is to get rid of \r\n\r\n */
-    char *p = strstr(buffer, "\r\n\r\n");
-    (*p)='\0';
-    strcpy(response->headers,buffer);
-
+    char* responsePtr=(char*)buffer;
+    char* bodyPtr = strstr((char*)buffer, "\r\n\r\n");
+    strcpy(response->body, bodyPtr + 4); 
+    (*bodyPtr)='\0';
+    strcpy(response->headers,responsePtr);
     closesocket(sock);
     WSACleanup();  /* Cleanup Winsock */
-
+    free(buffer);
     return 0;
 }
 
 
 void main(int argc, char *argv[])
 {
+
+
     if (argc != 4) {
         DieWithError("Usage: davhttp <host> <port> <path> \n");
     }
